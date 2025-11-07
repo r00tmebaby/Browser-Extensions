@@ -22,10 +22,7 @@ Usage
 - Click the extension icon while audio is playing in the active tab.
 - Use the volume slider to boost (post-processing gain).
 - Choose a preset or tweak EQ sliders; you can save/delete custom presets.
-- Watch the meters:
-  - Raw: input level before EQ/normalizer
-  - Processed: output level after processing
-  - GR: estimated compression gain reduction (difference between raw and compressor output)
+- Input level meter
 - Toggle Fast/Eco refresh to balance responsiveness and CPU usage.
 - Settings: Enable/disable, apply to all sites, and manage allowlist.
 
