@@ -16,7 +16,8 @@ Audio Normalizer & EQ respects your privacy. This extension does not collect, st
 
 ## Permissions
 
-- `activeTab` and `scripting` are used to inject the processing script only into the tab you interact with (when you open the popup). The extension no longer declares broad host permissions.
+- `scripting` and `activeTab` are used to apply audio processing to the current active tab only when you interact with the extension.
+- `<all_urls>` host permission allows the extension to work on any website where audio plays. The extension does not read or modify webpage content; it only attaches audio processing nodes to the page’s media elements.
 - `storage` is used to persist your settings (presets, allowlist, and options).
 
 ## Third Parties
