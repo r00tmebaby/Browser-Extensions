@@ -3,6 +3,16 @@
 
 A browser extension that makes websites more accessible through customizable text, contrast, and layout adjustments.
 
+![Main](media/main.png)
+![Main](media/options1.png)
+![Main](media/options2.png)
+![Main](media/options3.png)
+![Main](media/options4.png)
+![Main](media/options5.png)
+![Main](media/helper.png)
+![Main](media/helper1.png)
+![Main](media/helper2.png)
+
 ## What It Does
 
 UAE transforms any website to meet your accessibility needs:
