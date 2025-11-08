@@ -1,6 +1,6 @@
 # Browser Extensions Collection
 
-This repository hosts multiple Chrome extensions created by **r00tmebaby**. Each extension lives in its own folder (for example `Normaliser/`) and contains a `manifest.json` plus its source files (content scripts, popup UI, icons, etc.). You can clone the repo and load any extension into Chrome in developer mode.
+This repository hosts multiple browser extensions created by **r00tmebaby**. Each extension lives in its own folder (for example `Normaliser/`) and contains a `manifest.json` plus its source files (content scripts, popup UI, icons, etc.). You can clone the repo and load any extension into Chrome in developer mode.
 
 ## Current Extensions
 
