@@ -28,6 +28,7 @@
     mediaEl: null,
     lastMaxPos: 0,
     lastPeakDb: -60,
+    pendingResume: false,
   };
 
   function hostMatchesAllowlist(hostname, list) {
@@ -88,8 +89,12 @@
   function createChain(mediaEl) {
     if (!mediaEl) return null;
     try { mediaEl.crossOrigin = 'anonymous'; } catch {}
-    const audioCtx = new AudioCtx();
-    attachCtxStateHandler(audioCtx);
+
+    // Lazy create context only after user gesture or media play
+    if (!state.audioCtx) {
+      try { state.audioCtx = new AudioCtx(); attachCtxStateHandler(state.audioCtx); } catch { return null; }
+    }
+    const audioCtx = state.audioCtx;
     const source = audioCtx.createMediaElementSource(mediaEl);
 
     const comp = audioCtx.createDynamicsCompressor();
@@ -99,42 +104,22 @@
     comp.attack.value = 0.003;
     comp.release.value = 0.25;
 
-    const preAnalyser = audioCtx.createAnalyser();
-    preAnalyser.fftSize = 1024;
-    preAnalyser.smoothingTimeConstant = state.smoothing;
-
-    const compAnalyser = audioCtx.createAnalyser();
-    compAnalyser.fftSize = 1024;
-    compAnalyser.smoothingTimeConstant = state.smoothing;
-
     const postAnalyser = audioCtx.createAnalyser();
-    postAnalyser.fftSize = 1024;
-    postAnalyser.smoothingTimeConstant = state.smoothing;
+    postAnalyser.fftSize = 1024; postAnalyser.smoothingTimeConstant = state.smoothing;
 
     const filters = state.eqFreqs.map((freq) => {
       const f = audioCtx.createBiquadFilter();
-      f.type = "peaking";
-      f.frequency.value = freq;
-      f.Q.value = 0.9; // slightly broader for smoother response
-      f.gain.value = 0;
-      return f;
+      f.type = "peaking"; f.frequency.value = freq; f.Q.value = 0.9; f.gain.value = 0; return f;
     });
 
     const gain = audioCtx.createGain();
     gain.gain.value = state.gainValue;
 
-    // Output limiter to catch clipping after EQ+gain
     const limiter = audioCtx.createDynamicsCompressor();
-    limiter.threshold.value = -2;
-    limiter.knee.value = 0;
-    limiter.ratio.value = 20;
-    limiter.attack.value = 0.001;
-    limiter.release.value = 0.1;
+    limiter.threshold.value = -2; limiter.knee.value = 0; limiter.ratio.value = 20; limiter.attack.value = 0.001; limiter.release.value = 0.1;
 
     try {
-      source.connect(preAnalyser);
       source.connect(comp);
-      comp.connect(compAnalyser);
       let prev = comp;
       filters.forEach(f => { prev.connect(f); prev = f; });
       prev.connect(gain);
@@ -142,11 +127,10 @@
       limiter.connect(postAnalyser);
       postAnalyser.connect(audioCtx.destination);
     } catch (e) {
-      try { audioCtx.close(); } catch {}
       return null;
     }
 
-    return { audioCtx, source, comp, filters, gain, limiter, preAnalyser, compAnalyser, postAnalyser, analyser: postAnalyser };
+    return { audioCtx, source, comp, filters, gain, limiter, postAnalyser, analyser: postAnalyser };
   }
 
   function applyEqGains(filters, gains) {
@@ -154,7 +138,6 @@
     const ctx = state.audioCtx || (state.nodes && state.nodes.audioCtx) || null;
     let maxPos = 0;
     for (let i = 0; i < filters.length && i < gains.length; i++) {
-      // Clamp to ±12 but track positive boosts for headroom
       let g = Number(gains[i]) || 0;
       if (g > 12) g = 12; if (g < -12) g = -12;
       if (g > maxPos) maxPos = g;
@@ -167,8 +150,7 @@
   }
 
   function effectiveGainWithHeadroom() {
-    // Reduce output gain as positive EQ boosts increase to avoid distortion
-    const headroomFactor = 1 + (state.lastMaxPos / 12) * 0.5; // up to 1.5x reduction at +12dB
+    const headroomFactor = 1 + (state.lastMaxPos / 12) * 0.5;
     return state.gainValue / headroomFactor;
   }
 
@@ -198,26 +180,31 @@
     }
   }
 
+  function canStartContext(mediaEl){
+    if (!mediaEl) return false;
+    // Allow when media is already playing or a user gesture flagged resume
+    const playing = !!(mediaEl.currentTime > 0 && !mediaEl.paused && !mediaEl.ended);
+    return playing || state.pendingResume;
+  }
+
   function ensureActive() {
     if (state.active) return;
     const el = findFirstMediaElement();
-    if (!el) return;
+    if (!el || !canStartContext(el)) return; // wait for gesture or playback
 
     state.mediaEl = el;
     state.nodes = createChain(el);
     if (!state.nodes) return;
-    state.audioCtx = state.nodes.audioCtx;
 
     applyEqGains(state.nodes.filters, state.eqBands);
     state.nodes.gain.gain.value = state.gainValue;
     setEnabledOnNodes(state.enabled);
     resumeIfSuspended();
 
-    // Single meter loop (post analyser peak) for reliability
-    const buf = new Uint8Array(state.nodes.postAnalyser.fftSize);
+    const buf = new Uint8Array(state.nodes.analyser.fftSize);
     function meterLoop() {
-      if (!state.nodes || !state.nodes.postAnalyser) return;
-      try { state.nodes.postAnalyser.getByteTimeDomainData(buf); } catch { rebuildChain(); return; }
+      if (!state.nodes || !state.nodes.analyser) return;
+      try { state.nodes.analyser.getByteTimeDomainData(buf); } catch { rebuildChain(); return; }
       let peak = 0;
       for (let i=0;i<buf.length;i++) {
         const v = (buf[i]-128)/128; const a = Math.abs(v); if (a>peak) peak=a;
@@ -233,7 +220,7 @@
 
   function rebuildChain() {
     teardownChain();
-    maybeActivate();
+    ensureActive();
   }
 
   function maybeActivate() {
@@ -315,7 +302,7 @@
     if (!state.active) {
       tries += 1;
       maybeActivate();
-      if (tries > 30) clearInterval(poll);
+      if (tries > 60) clearInterval(poll); // extend attempts due to lazy activation
       return;
     }
     if (state.mediaEl && !document.contains(state.mediaEl)) {
@@ -329,15 +316,6 @@
       if (msg && msg.type === "getMeter") {
         const activeSite = shouldActivateForPage();
         sendResponse({ peakDb: state.lastPeakDb, active: !!state.active, allowed: activeSite });
-        return true;
-      }
-      if (msg && msg.type === 'getSpectrum') {
-        if (!state.nodes || !state.nodes.analyser) {
-          sendResponse({ bands: Array(state.eqFreqs.length).fill(-60), labels: freqLabels(state.eqFreqs) });
-          return true;
-        }
-        const bands = computeBandLevels(state.nodes.analyser, state.eqFreqs);
-        sendResponse({ bands, labels: freqLabels(state.eqFreqs) });
         return true;
       }
       if (msg && msg.type === "setGain") {
@@ -362,26 +340,6 @@
         sendResponse({ ok: true });
         return true;
       }
-      if (msg && msg.type === 'setEqMode') {
-        const m = Number(msg.mode);
-        if (![10,15,31].includes(m)) { sendResponse({ ok:false }); return true; }
-        state.eqMode = m;
-        state.eqFreqs = FREQ_TABLES[m];
-        // Resize eq bands preserving first values
-        const newer = Array(state.eqFreqs.length).fill(0);
-        for (let i = 0; i < Math.min(state.eqBands.length, newer.length); i++) newer[i] = state.eqBands[i];
-        state.eqBands = newer;
-        rebuildChain();
-        sendResponse({ ok: true });
-        return true;
-      }
-      if (msg && msg.type === 'setSmoothing') {
-        const value = Math.max(0.2, Math.min(0.9, Number(msg.value) || 0.5));
-        state.smoothing = value;
-        if (state.nodes && state.nodes.analyser) state.nodes.analyser.smoothingTimeConstant = value;
-        sendResponse({ ok:true });
-        return true;
-      }
       if (msg && msg.type === "setEnabled") {
         state.enabled = !!msg.value;
         setEnabledOnNodes(state.enabled);
@@ -401,10 +359,14 @@
         sendResponse({ ok: true });
         return true;
       }
-      if (msg && msg.type === "resumeCtx") { resumeIfSuspended(); sendResponse({ok:true}); return true; }
-    } catch (e) {
-      // ignore
-    }
+      if (msg && msg.type === "resumeCtx") {
+        state.pendingResume = true; // flag that user performed a gesture
+        maybeActivate();
+        resumeIfSuspended();
+        sendResponse({ ok: true });
+        return true;
+      }
+    } catch (e) {}
     return false;
   });
 

@@ -15,7 +15,8 @@
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
     "test:e2e": "node tests/e2e/runner.js",
-    "test:all": "npm run verify && npm test && npm run test:e2e",
+    "test:smoke": "node tests/smoke-test.js",
+    "test:all": "npm run verify && npm test && npm run test:smoke && npm run test:e2e",
     "verify": "node scripts/verify.js",
     "lint": "echo 'No linter configured yet'",
     "package": "node scripts/package.js"

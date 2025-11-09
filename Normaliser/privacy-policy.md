@@ -16,11 +16,9 @@ Audio Normalizer & EQ respects your privacy. This extension does not collect, st
 
 ## Permissions
 
-- **`activeTab`**: Allows the extension to access only the current tab when you click the extension icon. This is a privacy-friendly permission that doesn't require broad access.
-- **`scripting`**: Used to inject audio processing code into the active tab after you open the popup. The extension does not read or modify webpage content; it only attaches audio processing to media elements.
-- **`storage`**: Saves your settings locally (EQ presets, volume preferences, site allowlist, and options).
-
-**Important**: This extension does **not** use `host_permissions` or `<all_urls>`. It only accesses tabs when you explicitly click the extension icon, ensuring maximum privacy and faster Chrome Web Store review.
+- `scripting` and `activeTab` are used to apply audio processing to the current active tab only when you interact with the extension.
+- `<all_urls>` host permission allows the extension to work on any website where audio plays. The extension does not read or modify webpage content; it only attaches audio processing nodes to the page’s media elements.
+- `storage` is used to persist your settings (presets, allowlist, and options).
 
 ## Third Parties
 
@@ -39,4 +37,4 @@ We may update this policy from time to time. If changes are made, the effective 
 
 If you have questions about this policy, please open an issue on the GitHub repository:
 
-- https://github.com/r00tmebaby/Browser-Extensions/tree/master/Normaliser
+- https://github.com/r00tmebaby/Chrome-Extensions/tree/master/Normaliser

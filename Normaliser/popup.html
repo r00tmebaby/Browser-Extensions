@@ -12,7 +12,8 @@
       .small { font-size:11px; color:#555; }
       .eq-wrapper { display:grid; gap:6px; grid-template-columns: repeat(10,1fr); }
       .eq-band { display:flex; flex-direction:column; align-items:center; }
-      .vertical { writing-mode: bt-lr; -webkit-appearance: slider-vertical; appearance: slider-vertical; height:110px; width:18px; }
+      /* Replace non-standard slider-vertical appearance with writing-mode */
+      .vertical { writing-mode: vertical-lr; direction: rtl; height:110px; width:18px; }
       .controls { display:flex; flex-wrap:wrap; gap:6px; margin:6px 0; align-items:center; }
       select, .btn { font-size:11px; }
       .btn { padding:2px 6px; }
@@ -23,12 +24,16 @@
       .meter-bar { position:absolute; top:0; left:0; height:100%; width:0%; background:linear-gradient(90deg,#3cb371,#f0ad4e,#d9534f); transition:width 0.07s linear; }
       footer { margin-top:10px; font-size:12px; }
       footer a { color:#0066cc; text-decoration:none; }
+      .warn { background:#fff3cd; color:#664d03; border:1px solid #ffecb5; padding:6px; border-radius:4px; margin:6px 0; font-size:11px; }
     </style>
   </head>
   <body>
     <div class="toggle-row">
       <label><input type="checkbox" id="enabledToggle" /> Enabled</label>
       <label><input type="checkbox" id="applyAllToggle" /> Apply all sites</label>
+    </div>
+    <div id="gestureHelp" class="warn" style="display:none;">Click "Initialize audio" once per site to allow processing.
+      <button id="initAudioBtn" class="btn" style="margin-left:6px;">Initialize audio</button>
     </div>
     <h4>Volume Boost</h4>
     <div class="row">
